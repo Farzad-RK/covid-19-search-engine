@@ -1,0 +1,282 @@
+# Content-Based Image Retrieval for COVID-19 Lung CT Scans
+
+**Author:** Farzad Rahim Khanian
+Università degli Studi di Milano
+[farzad.rahimkhanian@studenti.unimi.it](mailto:farzad.rahimkhanian@studenti.unimi.it)
+[farzad.u235@gmail.com](mailto:farzad.u235@gmail.com)
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Theoretical Background](#theoretical-background)
+  - [Medical Image Processing](#medical-image-processing)
+  - [Image Enhancement (CLAHE)](#image-enhancement-clahe)
+  - [Lung Segmentation with U-Net](#lung-segmentation-with-u-net)
+  - [Feature Extraction: Deep CNNs (VGG16)](#feature-extraction-deep-cnns-vgg16)
+  - [Feature Selection and Classification](#feature-selection-and-classification)
+  - [Content-Based Image Retrieval (CBIR)](#content-based-image-retrieval-cbir)
+- [Project Architecture and Code Structure](#project-architecture-and-code-structure)
+- [Installation and Requirements](#installation-and-requirements)
+- [Data Preparation](#data-preparation)
+- [Pipeline Workflow](#pipeline-workflow)
+  - [1. Image Enhancement](#1-image-enhancement)
+  - [2. Lung Segmentation](#2-lung-segmentation)
+  - [3. Data Splitting](#3-data-splitting)
+  - [4. Feature Extraction](#4-feature-extraction)
+  - [5. Feature Selection](#5-feature-selection)
+  - [6. Fine-Tuning and Model Training](#6-fine-tuning-and-model-training)
+  - [7. Retrieval and Evaluation](#7-retrieval-and-evaluation)
+- [How to Run](#how-to-run)
+- [Example Results](#example-results)
+- [References](#references)
+- [Acknowledgments](#acknowledgments)
+- [License](#license)
+
+---
+
+## Overview
+
+This project provides a full **content-based image retrieval (CBIR)** and binary classification pipeline for COVID-19 diagnosis from lung CT images. The goal is to retrieve and classify CT scans based on image similarity, enhancing radiological diagnosis and dataset exploration.
+The code uses advanced image processing, deep learning (transfer learning with VGG16), and machine learning for robust performance. GPU acceleration is available via NVIDIA CUDA.
+
+---
+
+## Theoretical Background
+
+### Medical Image Processing
+
+CT imaging is essential in COVID-19 diagnosis due to its ability to visualize lung abnormalities that are often missed by X-rays. However, raw CT data can have low contrast and significant noise, making preprocessing a crucial first step[^hounsfield1973].
+
+#### Hounsfield Scale
+CT image intensity is measured in Hounsfield Units (HU), a quantitative scale describing tissue radiodensity. Lung tissue, air, and fluid have very different HU values, enabling discrimination with proper contrast enhancement.
+
+### Image Enhancement (CLAHE)
+
+#### Why Enhancement?
+Medical images often lack sufficient contrast to make pathological changes visually prominent. Simple histogram equalization may enhance noise as well as signal.
+
+#### CLAHE: Contrast Limited Adaptive Histogram Equalization
+
+- **AHE** divides the image into small tiles and performs local histogram equalization, improving local contrast.
+- **CLAHE** introduces a "clip limit" to reduce the risk of noise amplification in uniform areas.
+- Enhances subtle features (such as ground-glass opacities in COVID-19) without introducing artifacts.
+
+**Key code:**
+```python
+def enhance_image_contrast(image):
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    enhanced_image = clahe.apply(gray)
+    rgb_enhanced_image = cv2.cvtColor(enhanced_image, cv2.COLOR_GRAY2RGB)
+    return rgb_enhanced_image
+```
+
+### Lung Segmentation with U-Net
+
+- Segmentation removes non-lung background and focuses analysis on the lung parenchyma.
+- **U-Net** is a convolutional neural network (CNN) architecture specifically designed for biomedical image segmentation[^ronneberger2015u].
+  - Encoder path: contracts spatial dimensions, captures context.
+  - Decoder path: expands features, enables precise localization.
+  - Skip connections preserve fine details.
+
+**Practical Implementation:**
+The project uses [lungmask](https://github.com/JoHof/lungmask), a U-Net-based model pre-trained on medical CT data.
+
+### Feature Extraction: Deep CNNs (VGG16)
+
+- **VGG16** is a deep CNN with 16 weight layers, known for its simplicity and transfer learning performance[^simonyan2014].
+- Pre-trained on ImageNet, it captures generic visual features useful for many domains.
+- The fully connected (classification) layer is removed; activations from the last convolutional layer are used as feature vectors.
+- Each CT scan is represented as a high-dimensional (25,000+) vector, capturing spatial and textural information.
+
+### Feature Selection and Classification
+
+- Direct use of all features is computationally expensive and may lead to overfitting.
+- **Chi-squared feature selection:** Ranks features by statistical relevance to class labels.
+- **SVM (Support Vector Machine):** Used for binary classification (COVID/non-COVID).
+- The pipeline supports fine-tuning and cross-validation to optimize model accuracy.
+
+### Content-Based Image Retrieval (CBIR)
+
+- Given a query CT scan, retrieve visually similar cases from the dataset.
+- **Cosine similarity** measures the angle between feature vectors.
+- The system computes precision and recall at top-k retrieval, enabling performance analysis and clinical utility assessment[^wang2020covid].
+
+---
+
+## Project Architecture and Code Structure
+
+```
+main.py                  # Main menu and entry point
+image_processing.py      # All preprocessing, enhancement, segmentation routines
+feature_extraction.py    # Deep feature extraction, fine-tuning, feature selection, retrieval
+requirements.txt         # Python dependencies
+/data/
+  raw/COVID/             # Place raw COVID CT images here (.png)
+  raw/non-COVID/         # Place raw non-COVID CT images here (.png)
+  enhanced/              # Enhanced images after CLAHE
+  mask/                  # Lung masks from segmentation
+  masked/                # Images after enhancement & masking
+  training/              # Training split
+  test/                  # Test split
+```
+
+### Main Components
+
+- **`main.py`**:
+  Provides a command-line menu to run each pipeline stage interactively.
+
+- **`image_processing.py`**:
+  Handles image resizing, CLAHE enhancement, lung segmentation (via lungmask), and dataset splitting.
+
+- **`feature_extraction.py`**:
+  Handles VGG16 feature extraction, optional fine-tuning, feature selection (chi-squared), SVM training, cosine similarity ranking, and evaluation plots.
+
+---
+
+## Installation and Requirements
+
+### System Requirements
+
+- **OS:** Windows (for CUDA compatibility)
+- **GPU:** NVIDIA GPU (recommended), with CUDA drivers
+- **Python:** 3.8+
+
+### Python Dependencies
+
+Install all requirements:
+```sh
+pip install -r requirements.txt
+pip install lungmask
+```
+> See `requirements.txt` for package versions (Keras, TensorFlow, OpenCV, scikit-learn, matplotlib, etc.).
+
+---
+
+## Data Preparation
+
+1. **Organize raw data:**
+   Place your CT images in `.png` format under:
+   - `./data/raw/COVID`
+   - `./data/raw/non-COVID`
+2. **Run the pipeline:**
+   All further folders (enhanced, masks, splits) are created automatically.
+
+---
+
+## Pipeline Workflow
+
+### 1. Image Enhancement
+
+- Resizes images to 224x224.
+- Applies CLAHE for improved local contrast.
+- Enhanced images are stored in `./data/enhanced`.
+
+### 2. Lung Segmentation
+
+- Uses [lungmask](https://github.com/JoHof/lungmask) U-Net model.
+- Generates lung masks for all enhanced images.
+- Applies masks to remove background, stores results in `./data/masked`.
+
+### 3. Data Splitting
+
+- Automatically splits masked images into:
+  - `./data/training` (80%)
+  - `./data/test` (20%)
+- Each split contains COVID and non-COVID subfolders.
+
+### 4. Feature Extraction
+
+- Loads each CT scan, normalizes, and passes through VGG16 (without top dense layer).
+- Stores extracted features as `.joblib` files.
+- Features are $N 	imes D$ matrices ($N$ = number of images, $D$ = feature size).
+
+### 5. Feature Selection
+
+- Reduces feature dimensionality via chi-squared selection.
+- Optionally trains an SVM for binary classification (COVID vs. non-COVID).
+- Evaluates SVM accuracy as a function of number of features.
+
+### 6. Fine-Tuning and Model Training
+
+- Unfreezes last 3 blocks of VGG16 for domain-specific training.
+- Uses Adam optimizer with a low learning rate ($1e^{-5}$).
+- Keras `ImageDataGenerator` applies real-time augmentation.
+- Early stopping and model checkpointing ensure best model selection.
+
+### 7. Retrieval and Evaluation
+
+- Computes cosine similarity between query/test features and all training/database features.
+- Ranks training images by similarity to each query image.
+- Evaluates precision and recall at multiple top-$k$ thresholds (e.g., top-10, top-20).
+- Plots are generated for precision-recall and SVM accuracy.
+
+---
+
+## How to Run
+
+1. **Open a terminal and navigate to the project directory.**
+2. **Start the pipeline:**
+   ```sh
+   python main.py
+   ```
+3. **Choose from the menu:**
+   ```
+   1. Image processing
+   2. Evaluate retrieval
+   3. Evaluate feature selection
+   4. Evaluate retrieval with feature selection
+   5. Evaluate retrieval with feature selection and fine tuning
+   6. Exit
+   ```
+   - Begin with option 1 (preprocess, enhance, segment, split)
+   - Use options 2–5 for experiments and evaluation
+
+4. **View results:**
+   - Precision-recall curves, feature selection plots, and sample retrievals are saved in the working directory.
+
+---
+
+## Example Results
+
+Here are example images and plots you may include (put your files in `./figures`):
+
+- **Before/After Enhancement:**
+  ![Original and Enhanced CT image (CLAHE)](figures/clahe_before_after.png)
+- **Segmentation Mask Example:**
+  ![Lung Segmentation Example](figures/segmentation_example.png)
+- **VGG16 Architecture Schematic:**
+  ![VGG16 Architecture](figures/vgg16.png)
+- **SVM Feature Selection Performance:**
+  ![SVM Accuracy vs Features](figures/svm_selection.png)
+- **Precision-Recall Curve:**
+  ![Precision-Recall](figures/pr_curve.png)
+
+---
+
+## References
+
+[^hounsfield1973]: Hounsfield, G.N. (1973). Computerized transverse axial scanning (tomography): Part 1. Description of system. *The British Journal of Radiology*, 46(552), 1016–1022.
+[^ronneberger2015u]: Ronneberger, O., Fischer, P., & Brox, T. (2015). U-net: Convolutional networks for biomedical image segmentation. In *Medical image computing and computer-assisted intervention* (pp. 234–241). Springer.
+[^simonyan2014]: Simonyan, K., & Zisserman, A. (2014). Very deep convolutional networks for large-scale image recognition. *arXiv preprint arXiv:1409.1556*.
+[^chollet2015]: Chollet, F. et al. (2015). Keras. [https://keras.io](https://keras.io)
+[^lungmask2020]: Hofmanninger, J. et al. (2020). lungmask: Tool for automatic lung segmentation. [https://github.com/JoHof/lungmask](https://github.com/JoHof/lungmask)
+[^wang2020covid]: Wang, S. et al. (2021). A deep learning algorithm using CT images to screen for Corona Virus Disease (COVID-19). *European radiology*, 31(8), 6096–6104.
+
+---
+
+## Acknowledgments
+
+- [lungmask](https://github.com/JoHof/lungmask) for open-source lung segmentation.
+- Keras/TensorFlow teams for accessible deep learning frameworks.
+- Università degli Studi di Milano for support.
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
+
+---
