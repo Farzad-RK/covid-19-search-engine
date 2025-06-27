@@ -68,8 +68,63 @@ requirements.txt         # Python dependencies
   test/                  # Test split
 /figures/                # Add your images/plots here for documentation
 ```
+## Code Structure and Terminal Menu
+
+The project is organized for clarity and modularity, with clear separation between image preprocessing, feature extraction, and evaluation modules.
 
 ---
+
+### Terminal Menu Details
+
+Running `python main.py` presents an interactive menu with options for every major pipeline step.  
+**Each option triggers a key part of the workflow as follows:**
+
+| Option | Operation                                                        | What it Does                                                                                                    |
+|--------|------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| **1**  | Image processing                                                 | Preprocesses images: applies CLAHE enhancement, performs lung segmentation (lungmask), applies masks, and splits data into training and test sets. |
+| **2**  | Evaluate retrieval                                               | Extracts deep features (VGG16), performs image retrieval on test queries, and plots precision/recall curves.     |
+| **3**  | Evaluate feature selection                                       | Evaluates which extracted features are most useful for SVM-based classification using ANOVA/chi2 selection.      |
+| **4**  | Evaluate retrieval with feature selection                        | Runs image retrieval pipeline, but applies feature selection (chi2) to improve retrieval by reducing feature noise. |
+| **5**  | Evaluate retrieval with feature selection and fine-tuning        | Fine-tunes VGG16 on your dataset, extracts features from the fine-tuned model, applies feature selection, and evaluates retrieval performance. |
+| **6**  | Exit                                                            | Exits the program.                                                                                               |
+
+**Note:**  
+There is a numbering typo in the printed menu (two “5”s and no “4”), but the menu logic works as above:  
+- Entering `4` executes *Evaluate retrieval with feature selection*  
+- Entering `5` executes *Evaluate retrieval with feature selection and fine-tuning*  
+- Any invalid input or option will prompt you to select again.
+
+**In summary:**  
+- **Option 1:** Preprocess and split your data  
+- **Option 2:** Baseline image retrieval using VGG16 features  
+- **Option 3:** Analyze and visualize best feature subset via SVM/chi2  
+- **Option 4:** Retrieval using only selected features (reduces noise)  
+- **Option 5:** Same as 4, but features come from a VGG16 fine-tuned on your data  
+- **Option 6:** Exit
+
+---
+
+### Summary of Core Python Modules
+
+#### `main.py`
+- User interface: text-based menu for all major actions.
+- Each menu option triggers a well-defined function.
+- Exits gracefully on selection 6.
+
+#### `feature_extraction.py`
+- **Feature extraction**: VGG16/VGG19-based vectorization of images.
+- **Feature selection**: chi2 (ANOVA) and SVM evaluation.
+- **Fine-tuning**: Unfreezes top VGG16 layers, retrains on COVID data.
+- **Retrieval**: Uses cosine similarity for ranking images.
+- **Evaluation**: Precision/recall and SVM accuracy plots.
+
+#### `image_processing.py`
+- **Preprocessing**: Image resizing, CLAHE, etc.
+- **Segmentation**: Automatic lung region isolation (lungmask/U-Net).
+- **Splitting**: Generates consistent train/test folders for ML workflows.
+
+---
+
 
 ## Installation and Requirements
 
