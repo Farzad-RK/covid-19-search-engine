@@ -88,10 +88,7 @@ Running `python main.py` presents an interactive menu with options for every maj
 | **5**  | Evaluate retrieval with feature selection and fine-tuning        | Fine-tunes VGG16 on your dataset, extracts features from the fine-tuned model, applies feature selection, and evaluates retrieval performance. |
 | **6**  | Exit                                                            | Exits the program.                                                                                               |
 
-**Note:**  
-There is a numbering typo in the printed menu (two “5”s and no “4”), but the menu logic works as above:  
-- Entering `4` executes *Evaluate retrieval with feature selection*  
-- Entering `5` executes *Evaluate retrieval with feature selection and fine-tuning*  
+**Note:**
 - Any invalid input or option will prompt you to select again.
 
 **In summary:**  

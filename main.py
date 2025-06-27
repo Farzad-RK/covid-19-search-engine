@@ -81,7 +81,7 @@ def main():
                   "1.Image processing \n"
                   "2.Evaluate retrieval \n"
                   "3.Evaluate feature selection\n"
-                  "5.Evaluate retrieval with feature selection\n"
+                  "4.Evaluate retrieval with feature selection\n"
                   "5.Evaluate retrieval with feature selection and fine tuning\n"
                   "6.Exit"
                   )
